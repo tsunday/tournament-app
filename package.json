@@ -1,13 +1,16 @@
 {
-  "name": "puchar-felka-2016",
+  "name": "puchar-felka",
   "version": "1.0.0",
-  "description": "Tabela turnieju Puchar Felka 2016 — statyczna strona z edycją na żywo (Node.js, sieć lokalna).",
+  "description": "Tabela turnieju Puchar Felka — statyczna strona z edycją na żywo (Node.js + MongoDB).",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
+  },
+  "dependencies": {
+    "mongodb": "^6.12.0"
   },
   "private": true
 }

@@ -1,0 +1,35 @@
+# Puchar Felka — aplikacja + MongoDB
+# Uruchomienie:  docker compose up --build
+# Aplikacja:     http://localhost:3000
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DB: puchar_felka
+      # PIN edycji — zmień przed wystawieniem poza zaufaną sieć (puste = bez ochrony)
+      EDIT_PIN: felek
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    # Port NIE jest wystawiany na zewnątrz (least privilege) — dostępny tylko dla app.
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mongo-data:
