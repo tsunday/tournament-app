@@ -158,6 +158,16 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 405, { error: 'Metoda niedozwolona' });
   }
 
+  // --- Logo turnieju (leży poza /public, w data/images) ---
+  if (pathname === '/logo.png' && (req.method === 'GET' || req.method === 'HEAD')) {
+    const logoPath = path.join(DATA_DIR, 'images', 'logo.png');
+    return fs.stat(logoPath, (err, stat) => {
+      if (err || !stat.isFile()) return send(res, 404, 'Brak logo');
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' });
+      fs.createReadStream(logoPath).pipe(res);
+    });
+  }
+
   // --- Pliki statyczne ---
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return send(res, 405, 'Method Not Allowed');

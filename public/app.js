@@ -12,6 +12,7 @@
   let savePending = false;
   let es = null;             // EventSource (SSE)
   let suppressEvents = false; // ignoruj zdarzenia "data" tuż po własnym zapisie
+  let bracketCols = {};      // referencje do kolumn drabinki (tryb pucharowy)
 
   // ---------- Skróty ----------
   const $ = (sel) => document.querySelector(sel);
@@ -96,11 +97,24 @@
     groupsEl.innerHTML = '';
     loadingEl.hidden = true;
 
-    (state.groups || []).forEach((group, idx) => {
-      const card = buildGroupCard(group);
-      card.style.animationDelay = (idx * 70) + 'ms';
-      groupsEl.appendChild(card);
-    });
+    const mode = state.mode || 'groups';
+    document.body.classList.toggle('mode-bracket', mode === 'bracket');
+
+    if (mode === 'bracket') {
+      groupsEl.appendChild(buildBracketView());
+    } else {
+      (state.groups || []).forEach((group, idx) => {
+        const card = buildGroupCard(group);
+        card.style.animationDelay = (idx * 70) + 'ms';
+        groupsEl.appendChild(card);
+      });
+    }
+
+    // Sterowanie widocznością elementów specyficznych dla trybu grupowego
+    const addGroupBtn = $('#add-group');
+    if (addGroupBtn) addGroupBtn.style.display = (mode === 'bracket') ? 'none' : '';
+    const legend = document.querySelector('.footer-legend');
+    if (legend) legend.style.display = (mode === 'bracket') ? 'none' : '';
 
     if (state.updatedAt) {
       const d = new Date(state.updatedAt);
@@ -383,6 +397,233 @@
     render();
   }
 
+  // =========================================================
+  //  Tryb pucharowy — drabinka dla 8 osób
+  //  Ćwierćfinały (4) → Półfinały (2) → Finał (1) + mecz o 3. miejsce.
+  //  Zwycięzcy awansują automatycznie na podstawie wyników.
+  // =========================================================
+  function emptyKO(id) { return { id: id, homeScore: null, awayScore: null, played: false }; }
+
+  function defaultBracket() {
+    const players = [];
+    for (let i = 0; i < 8; i++) players.push({ id: uid('p'), name: 'Zawodnik ' + (i + 1) });
+    const qf = [];
+    for (let i = 0; i < 4; i++) {
+      qf.push({ id: 'qf' + (i + 1), homeId: players[i * 2].id, awayId: players[i * 2 + 1].id, homeScore: null, awayScore: null, played: false });
+    }
+    return { players: players, qf: qf, sf: [emptyKO('sf1'), emptyKO('sf2')], final: emptyKO('final'), third: emptyKO('third') };
+  }
+
+  function getBracket() {
+    const b = state.bracket;
+    if (!b || !Array.isArray(b.players) || !Array.isArray(b.qf)) {
+      state.bracket = defaultBracket();
+    }
+    return state.bracket;
+  }
+
+  function bPlayerName(id) {
+    if (!id) return null;
+    const p = state.bracket.players.find((x) => x.id === id);
+    return p ? p.name : null;
+  }
+
+  // Zwycięzca meczu pucharowego (null = nierozegrany lub remis)
+  function koWinner(homeId, awayId, m) {
+    if (!m || homeId == null || awayId == null) return null;
+    if (m.homeScore == null || m.awayScore == null) return null;
+    const hs = Number(m.homeScore), as = Number(m.awayScore);
+    if (hs > as) return homeId;
+    if (as > hs) return awayId;
+    return null; // remis — brak awansu
+  }
+  function koLoser(homeId, awayId, m) {
+    const w = koWinner(homeId, awayId, m);
+    if (!w) return null;
+    return w === homeId ? awayId : homeId;
+  }
+
+  // Wylicza uczestników kolejnych rund na podstawie wyników poprzednich.
+  function resolveBracket() {
+    const b = getBracket();
+    const qfWin = b.qf.map((m) => koWinner(m.homeId, m.awayId, m));
+    const sf = [
+      { homeId: qfWin[0], awayId: qfWin[1], m: b.sf[0] },
+      { homeId: qfWin[2], awayId: qfWin[3], m: b.sf[1] },
+    ];
+    const sfWin = sf.map((s) => koWinner(s.homeId, s.awayId, s.m));
+    const sfLose = sf.map((s) => koLoser(s.homeId, s.awayId, s.m));
+    const final = { homeId: sfWin[0], awayId: sfWin[1], m: b.final };
+    const third = { homeId: sfLose[0], awayId: sfLose[1], m: b.third };
+    return {
+      qf: b.qf.map((m) => ({ homeId: m.homeId, awayId: m.awayId, m: m })),
+      sf: sf, final: final, third: third,
+      champion: koWinner(final.homeId, final.awayId, b.final),
+    };
+  }
+
+  function buildBracketView() {
+    getBracket();
+    bracketCols = {};
+    const root = document.createElement('div');
+    root.className = 'bracket-wrap';
+    const board = document.createElement('div');
+    board.className = 'bracket';
+    bracketCols.qf = buildBracketColumn('Ćwierćfinały', 'qf');
+    bracketCols.sf = buildBracketColumn('Półfinały', 'sf');
+    bracketCols.final = buildBracketColumn('Finał', 'final');
+    board.appendChild(bracketCols.qf);
+    board.appendChild(bracketCols.sf);
+    board.appendChild(bracketCols.final);
+    bracketCols.third = buildBracketColumn('Mecz o 3. miejsce', 'third');
+    bracketCols.third.classList.add('bracket-third');
+    root.appendChild(board);
+    root.appendChild(bracketCols.third);
+    ['qf', 'sf', 'final', 'third'].forEach(rebuildCol);
+    return root;
+  }
+
+  function buildBracketColumn(title, key) {
+    const col = document.createElement('div');
+    col.className = 'bracket-col bracket-col-' + key;
+    const head = document.createElement('div');
+    head.className = 'bracket-col-title';
+    head.textContent = title;
+    const inner = document.createElement('div');
+    inner.className = 'bracket-matches';
+    col.appendChild(head);
+    col.appendChild(inner);
+    col._inner = inner;
+    return col;
+  }
+
+  function appendChampion(container, championId) {
+    const name = bPlayerName(championId);
+    const champ = document.createElement('div');
+    champ.className = 'champion' + (name ? ' has' : '');
+    champ.innerHTML = name ? ('🏆 Zwycięzca: <b>' + esc(name) + '</b>') : '🏆 Zwycięzca: —';
+    container.appendChild(champ);
+  }
+
+  // Przebudowuje pojedynczą kolumnę z aktualnych danych.
+  function rebuildCol(key) {
+    const col = bracketCols[key];
+    if (!col) return;
+    const r = resolveBracket();
+    col._inner.innerHTML = '';
+    if (key === 'qf') {
+      r.qf.forEach((p, i) => col._inner.appendChild(buildKOMatch(p, { round: 'qf', index: i, editNames: editMode })));
+    } else if (key === 'sf') {
+      r.sf.forEach((p, i) => col._inner.appendChild(buildKOMatch(p, { round: 'sf', index: i })));
+    } else if (key === 'final') {
+      col._inner.appendChild(buildKOMatch(r.final, { round: 'final', index: 0 }));
+      appendChampion(col._inner, r.champion);
+    } else if (key === 'third') {
+      col._inner.appendChild(buildKOMatch(r.third, { round: 'third', index: 0 }));
+    }
+  }
+
+  // Odświeża tylko kolumny zależne od zmienionej rundy (zachowuje focus w edytowanym polu).
+  function refreshDownstream(round) {
+    if (round === 'qf') { rebuildCol('sf'); rebuildCol('final'); rebuildCol('third'); }
+    else if (round === 'sf') { rebuildCol('final'); rebuildCol('third'); }
+    else if (round === 'final') {
+      const old = bracketCols.final._inner.querySelector('.champion');
+      if (old) old.remove();
+      appendChampion(bracketCols.final._inner, resolveBracket().champion);
+    }
+  }
+
+  function buildKOMatch(part, opts) {
+    const m = part.m;
+    const ready = part.homeId != null && part.awayId != null;
+    const node = document.createElement('div');
+    node.className = 'ko-match';
+
+    function makeRow(side) {
+      const playerId = side === 'home' ? part.homeId : part.awayId;
+      const name = playerId ? bPlayerName(playerId) : null;
+      const row = document.createElement('div');
+      row.className = 'ko-row';
+
+      const namePart = document.createElement('span');
+      namePart.className = 'ko-name';
+      const badge = document.createElement('span');
+      badge.className = 'team-badge sm';
+      badge.style.background = name ? teamColor(name) : '#c5cbe0';
+      badge.textContent = name ? initials(name) : '?';
+      namePart.appendChild(badge);
+
+      if (opts.editNames && playerId) {
+        const inp = document.createElement('input');
+        inp.className = 'ko-name-input';
+        inp.value = name || '';
+        inp.addEventListener('input', (e) => {
+          const p = state.bracket.players.find((x) => x.id === playerId);
+          if (p) p.name = e.target.value;
+          badge.style.background = teamColor(e.target.value || '');
+          badge.textContent = initials(e.target.value || '?');
+          refreshDownstream('qf'); // nazwa propaguje się do dalszych rund
+          scheduleSave();
+        });
+        namePart.appendChild(inp);
+      } else {
+        const txt = document.createElement('span');
+        txt.className = 'ko-name-text';
+        txt.textContent = name || '—';
+        namePart.appendChild(txt);
+      }
+      row.appendChild(namePart);
+
+      const scorePart = document.createElement('span');
+      scorePart.className = 'ko-score';
+      if (editMode && ready) {
+        const inp = document.createElement('input');
+        inp.className = 'score-input';
+        inp.type = 'number'; inp.min = '0'; inp.inputMode = 'numeric';
+        const val = side === 'home' ? m.homeScore : m.awayScore;
+        inp.value = val != null ? val : '';
+        inp.addEventListener('input', (e) => {
+          const v = e.target.value === '' ? null : Math.max(0, parseInt(e.target.value, 10) || 0);
+          if (side === 'home') m.homeScore = v; else m.awayScore = v;
+          m.played = (m.homeScore != null && m.awayScore != null);
+          applyWinnerUI();
+          refreshDownstream(opts.round);
+          scheduleSave();
+        });
+        scorePart.appendChild(inp);
+      } else if (ready) {
+        const val = side === 'home' ? m.homeScore : m.awayScore;
+        scorePart.textContent = val != null ? String(val) : '–';
+      }
+      row.appendChild(scorePart);
+      return row;
+    }
+
+    const homeRow = makeRow('home');
+    const awayRow = makeRow('away');
+    node.appendChild(homeRow);
+    node.appendChild(awayRow);
+
+    const warn = document.createElement('div');
+    warn.className = 'ko-warn';
+    warn.hidden = true;
+    warn.textContent = 'Remis — potrzebny rozstrzygający wynik';
+    node.appendChild(warn);
+
+    function applyWinnerUI() {
+      const w = koWinner(part.homeId, part.awayId, m);
+      homeRow.classList.toggle('winner', !!w && w === part.homeId);
+      awayRow.classList.toggle('winner', !!w && w === part.awayId);
+      const draw = ready && m.played && m.homeScore != null && m.awayScore != null &&
+        Number(m.homeScore) === Number(m.awayScore);
+      warn.hidden = !draw;
+    }
+    applyWinnerUI();
+
+    return node;
+  }
+
   // ---------- Ustawienia (modal) ----------
   function openSettings() {
     const s = state.settings || (state.settings = { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, qualifyCount: 2 });
@@ -397,6 +638,11 @@
         <input class="team-name-input" id="set-year" value="${esc(state.year)}" style="width:100%" />
         <label style="display:block;margin:10px 0 4px;font-weight:600">Podtytuł</label>
         <input class="team-name-input" id="set-sub" value="${esc(state.subtitle)}" style="width:100%" />
+        <label style="display:block;margin:10px 0 4px;font-weight:600">Tryb turnieju</label>
+        <select class="team-name-input" id="set-mode" style="width:100%">
+          <option value="groups"${(state.mode || 'groups') === 'groups' ? ' selected' : ''}>Grupy (każdy z każdym)</option>
+          <option value="bracket"${state.mode === 'bracket' ? ' selected' : ''}>Puchar — 8 osób (ćwierćfinały → półfinały → finał)</option>
+        </select>
         <label style="display:block;margin:10px 0 4px;font-weight:600">Ile drużyn awansuje z grupy</label>
         <input class="team-name-input" id="set-qual" type="number" min="0" value="${s.qualifyCount || 0}" style="width:100%" />
         <div style="display:flex;gap:10px;margin-top:10px">
@@ -416,6 +662,8 @@
       state.tournamentName = modal.querySelector('#set-name').value.trim() || state.tournamentName;
       state.year = modal.querySelector('#set-year').value.trim();
       state.subtitle = modal.querySelector('#set-sub').value.trim();
+      state.mode = modal.querySelector('#set-mode').value === 'bracket' ? 'bracket' : 'groups';
+      if (state.mode === 'bracket') getBracket(); // zainicjuj drabinkę przy pierwszym przełączeniu
       s.qualifyCount = Math.max(0, parseInt(modal.querySelector('#set-qual').value, 10) || 0);
       s.pointsWin = parseInt(modal.querySelector('#set-w').value, 10) || 0;
       s.pointsDraw = parseInt(modal.querySelector('#set-d').value, 10) || 0;

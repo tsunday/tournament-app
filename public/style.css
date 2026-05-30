@@ -109,6 +109,12 @@ body {
   filter: drop-shadow(0 2px 2px rgba(0,0,0,.4));
 }
 .crest-ball { font-size: 30px; line-height: 1; }
+.crest-logo {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  border-radius: 11px;
+  padding: 3px;
+}
 
 .brand-text h1 {
   font-family: var(--font-display);
@@ -547,6 +553,107 @@ body.editing .group-card { border-color: var(--gold); }
   backdrop-filter: blur(3px);
 }
 .modal[hidden] { display: none; }
+
+/* =========================================================
+   Tryb pucharowy (drabinka 8 osób)
+   ========================================================= */
+.bracket-wrap { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+.bracket {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(170px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.bracket-col { display: flex; flex-direction: column; min-width: 0; }
+.bracket-col-title {
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  color: var(--white);
+  text-transform: uppercase;
+  font-size: 14px;
+  margin: 0 0 12px;
+  text-align: center;
+  text-shadow: 0 2px 0 var(--blue-deep);
+}
+.bracket-matches {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 14px;
+  flex: 1;
+}
+.bracket-col-sf .bracket-matches { padding: 26px 0; }
+.bracket-col-final .bracket-matches { justify-content: center; padding: 60px 0; }
+
+.ko-match {
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.ko-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.ko-row + .ko-row { border-top: 1px solid var(--line); }
+.ko-row.winner { background: rgba(47, 174, 70, 0.14); }
+.ko-row.winner .ko-name-text { font-weight: 700; color: var(--green-deep); }
+.ko-name { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.ko-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-badge.sm { width: 22px; height: 22px; font-size: 10px; }
+.ko-name-input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 14px;
+  width: 100%;
+  min-width: 0;
+}
+.ko-name-input:focus { outline: none; border-color: var(--blue); }
+.ko-score {
+  font-family: var(--font-display);
+  font-size: 18px;
+  min-width: 24px;
+  text-align: center;
+  color: var(--blue-deep);
+  flex: 0 0 auto;
+}
+.ko-score .score-input { width: 42px; }
+.ko-warn {
+  font-size: 11px;
+  color: #c23b3b;
+  text-align: center;
+  padding: 0 6px 6px;
+}
+.champion {
+  margin-top: 16px;
+  text-align: center;
+  background: linear-gradient(180deg, #fff7df, #ffe39c);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 12px 10px;
+  font-weight: 600;
+  color: var(--blue-deep);
+  box-shadow: var(--shadow-soft);
+}
+.bracket-third {
+  max-width: 280px;
+  margin: 22px auto 0;
+}
+@media (max-width: 640px) {
+  .bracket { grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 8px; }
+  .bracket-col-sf .bracket-matches { padding: 12px 0; }
+  .bracket-col-final .bracket-matches { padding: 22px 0; }
+  .ko-row { padding: 6px 7px; gap: 5px; }
+  .ko-score .score-input { width: 34px; }
+}
 .modal-card {
   background: #fff;
   border-radius: var(--radius);

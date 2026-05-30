@@ -1,7 +1,7 @@
 {
   "tournamentName": "Puchar Felka",
-  "year": "2016",
-  "subtitle": "Turniej piłkarski dla dzieci",
+  "year": "2026",
+  "subtitle": "Turniej piłkarski dla dzieci Fifa 2016",
   "settings": {
     "pointsWin": 3,
     "pointsDraw": 1,
@@ -28,59 +28,123 @@
         {
           "id": "a4",
           "name": "Grześ"
+        },
+        {
+          "id": "team-mpsdjfee-8t5ev",
+          "name": "Kapi"
+        },
+        {
+          "id": "team-mpsdjmn8-gtvls",
+          "name": "Ignacy"
+        },
+        {
+          "id": "team-mpsdjr5q-l5xph",
+          "name": "Adam"
+        },
+        {
+          "id": "team-mpsdju0z-et46s",
+          "name": "Tomek"
         }
       ],
-      "matches": [
-        {
-          "id": "ma1",
-          "homeId": "a1",
-          "awayId": "a2",
-          "homeScore": 3,
-          "awayScore": 1,
-          "played": true
-        },
-        {
-          "id": "ma2",
-          "homeId": "a3",
-          "awayId": "a4",
-          "homeScore": 2,
-          "awayScore": 2,
-          "played": true
-        },
-        {
-          "id": "ma3",
-          "homeId": "a1",
-          "awayId": "a3",
-          "homeScore": 1,
-          "awayScore": 0,
-          "played": true
-        },
-        {
-          "id": "ma4",
-          "homeId": "a2",
-          "awayId": "a4",
-          "homeScore": 0,
-          "awayScore": 0,
-          "played": true
-        },
-        {
-          "id": "ma5",
-          "homeId": "a1",
-          "awayId": "a4",
-          "homeScore": 4,
-          "awayScore": 1,
-          "played": true
-        },
-        {
-          "id": "ma6",
-          "homeId": "a2",
-          "awayId": "a3",
-          "homeScore": null,
-          "awayScore": null,
-          "played": false
-        }
-      ]
+      "matches": []
     }
   ],
-  "updatedAt": "2026-05-30T13:15:11.826Z"
+  "updatedAt": "2026-05-30T17:24:20.056Z",
+  "mode": "bracket",
+  "bracket": {
+    "players": [
+      {
+        "id": "p-mpse2na6-35mwt",
+        "name": "Zbychu"
+      },
+      {
+        "id": "p-mpse2na6-8l3rg",
+        "name": "67MangoMusztarda"
+      },
+      {
+        "id": "p-mpse2na6-otai8",
+        "name": "Dziad"
+      },
+      {
+        "id": "p-mpse2na6-4d3g4",
+        "name": "Dziub"
+      },
+      {
+        "id": "p-mpse2na6-l8kv4",
+        "name": "Grzygrzy"
+      },
+      {
+        "id": "p-mpse2na6-xo81m",
+        "name": "Mietek"
+      },
+      {
+        "id": "p-mpse2na6-82fde",
+        "name": "Kasti"
+      },
+      {
+        "id": "p-mpse2na6-w837f",
+        "name": "Tomix"
+      }
+    ],
+    "qf": [
+      {
+        "id": "qf1",
+        "homeId": "p-mpse2na6-35mwt",
+        "awayId": "p-mpse2na6-8l3rg",
+        "homeScore": 0,
+        "awayScore": 1,
+        "played": true
+      },
+      {
+        "id": "qf2",
+        "homeId": "p-mpse2na6-otai8",
+        "awayId": "p-mpse2na6-4d3g4",
+        "homeScore": 1,
+        "awayScore": 0,
+        "played": true
+      },
+      {
+        "id": "qf3",
+        "homeId": "p-mpse2na6-l8kv4",
+        "awayId": "p-mpse2na6-xo81m",
+        "homeScore": 0,
+        "awayScore": 1,
+        "played": true
+      },
+      {
+        "id": "qf4",
+        "homeId": "p-mpse2na6-82fde",
+        "awayId": "p-mpse2na6-w837f",
+        "homeScore": 1,
+        "awayScore": 0,
+        "played": true
+      }
+    ],
+    "sf": [
+      {
+        "id": "sf1",
+        "homeScore": 0,
+        "awayScore": 1,
+        "played": true
+      },
+      {
+        "id": "sf2",
+        "homeScore": 1,
+        "awayScore": 0,
+        "played": true
+      }
+    ],
+    "final": {
+      "id": "final",
+      "homeScore": 0,
+      "awayScore": 0,
+      "played": true
+    },
+    "third": {
+      "id": "third",
+      "homeScore": null,
+      "awayScore": null,
+      "played": false
+    }
+  }
 }

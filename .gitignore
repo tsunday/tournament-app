@@ -1,0 +1,15 @@
+# Kopie zapasowe danych turnieju (tworzone automatycznie przy każdym zapisie)
+data/backups/
+
+# Zależności / artefakty Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Pliki systemowe / edytorów
+.DS_Store
+*.swp
+*.tmp
+*~
+.idea/
+.vscode/
