@@ -1,17 +1,19 @@
 /**
- * Puchar Felka 2016 — serwer turniejowy
+ * Puchar Felka — serwer turniejowy
  * --------------------------------------
- * Zero zewnętrznych zależności. Wymaga tylko Node.js (>= 16).
+ * Dane przechowywane w MongoDB (schemat znormalizowany — patrz db.js).
+ * Wymaga Node.js (>= 18) oraz dostępnej instancji MongoDB (zmienna MONGODB_URI).
  *
  * Funkcje:
  *  - Hostuje pliki statyczne z katalogu /public w sieci lokalnej (0.0.0.0)
- *  - GET  /api/data        -> zwraca dane turnieju (data/tournament.json)
+ *  - GET  /api/data        -> zwraca pełny dokument turnieju (złożony z kolekcji)
  *  - POST /api/data        -> zapisuje dane turnieju (wymaga nagłówka x-edit-pin, jeśli ustawiony PIN)
+ *  - GET  /api/health      -> prosty health-check (dla Dockera / load balancera)
  *  - GET  /api/events      -> Server-Sent Events:
- *        * event "data"   gdy zmieni się tournament.json (synchronizacja na żywo u widzów)
+ *        * event "data"   po zapisie danych (synchronizacja na żywo u widzów)
  *        * event "reload" gdy zmieni się plik źródłowy w /public (live-reload przy edycji)
  *
- * Uruchomienie:  node server.js   (opcjonalnie: PORT=8080 node server.js)
+ * Uruchomienie:  node server.js   (najpierw `npm install`; konfiguracja przez env / config.json)
  */
 
 'use strict';
@@ -20,13 +22,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const db = require('./db');
 
 // ---------- Konfiguracja ----------
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'tournament.json');
-const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 
 function loadConfig() {
@@ -40,7 +42,9 @@ function loadConfig() {
 }
 const config = loadConfig();
 const PORT = Number(process.env.PORT) || config.port || 3000;
-const EDIT_PIN = (config.editPin === undefined ? '' : String(config.editPin)).trim();
+// PIN można nadpisać zmienną środowiskową (wygodne w Dockerze).
+const EDIT_PIN = (process.env.EDIT_PIN !== undefined ? process.env.EDIT_PIN
+  : (config.editPin === undefined ? '' : String(config.editPin))).trim();
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -90,19 +94,20 @@ function readBody(req) {
   });
 }
 
-function backupData() {
+// Dane startowe przy pustej bazie: importowane z data/tournament.json,
+// a w razie jego braku — minimalny pusty turniej.
+function seedData() {
   try {
-    if (!fs.existsSync(DATA_FILE)) return;
-    if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    fs.copyFileSync(DATA_FILE, path.join(BACKUP_DIR, `tournament-${stamp}.json`));
-    // Zostaw tylko 20 ostatnich kopii
-    const files = fs.readdirSync(BACKUP_DIR).filter((f) => f.endsWith('.json')).sort();
-    while (files.length > 20) {
-      fs.unlinkSync(path.join(BACKUP_DIR, files.shift()));
-    }
-  } catch (e) {
-    console.warn('Nie udało się zrobić kopii zapasowej:', e.message);
+    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } catch (_) {
+    return {
+      tournamentName: 'Puchar Felka',
+      year: '',
+      subtitle: 'Turniej piłkarski dla dzieci',
+      settings: { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, qualifyCount: 2 },
+      mode: 'groups',
+      groups: [],
+    };
   }
 }
 
@@ -110,6 +115,11 @@ function backupData() {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(url.pathname);
+
+  // --- API: health-check ---
+  if (pathname === '/api/health') {
+    return sendJson(res, 200, { ok: true });
+  }
 
   // --- API: SSE ---
   if (pathname === '/api/events') {
@@ -131,8 +141,9 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/data') {
     if (req.method === 'GET') {
       try {
-        const raw = fs.readFileSync(DATA_FILE, 'utf8');
-        return send(res, 200, raw, { 'Content-Type': 'application/json; charset=utf-8' });
+        const data = await db.readTournament();
+        if (!data) return sendJson(res, 404, { error: 'Brak danych turnieju.' });
+        return sendJson(res, 200, data);
       } catch (e) {
         return sendJson(res, 500, { error: 'Nie można odczytać danych: ' + e.message });
       }
@@ -146,11 +157,9 @@ const server = http.createServer(async (req, res) => {
       try {
         const raw = await readBody(req);
         const parsed = JSON.parse(raw); // walidacja, że to poprawny JSON
-        parsed.updatedAt = new Date().toISOString();
-        backupData();
-        fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2), 'utf8');
-        broadcast('data', { updatedAt: parsed.updatedAt });
-        return sendJson(res, 200, { ok: true, updatedAt: parsed.updatedAt });
+        const updatedAt = await db.writeTournament(parsed);
+        broadcast('data', { updatedAt });
+        return sendJson(res, 200, { ok: true, updatedAt });
       } catch (e) {
         return sendJson(res, 400, { error: 'Błędne dane: ' + e.message });
       }
@@ -192,18 +201,12 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-// ---------- Live-reload: obserwacja plików źródłowych i danych ----------
+// ---------- Live-reload: obserwacja plików źródłowych ----------
 function watchForLiveReload() {
   let reloadTimer = null;
-  let dataTimer = null;
-
   const triggerReload = () => {
     clearTimeout(reloadTimer);
     reloadTimer = setTimeout(() => broadcast('reload', { at: Date.now() }), 120);
-  };
-  const triggerData = () => {
-    clearTimeout(dataTimer);
-    dataTimer = setTimeout(() => broadcast('data', { at: Date.now() }), 120);
   };
 
   try {
@@ -215,14 +218,6 @@ function watchForLiveReload() {
     });
   } catch (e) {
     console.warn('fs.watch(public) niedostępny na tym systemie:', e.message);
-  }
-
-  try {
-    fs.watch(DATA_DIR, (_evt, filename) => {
-      if (filename && filename.startsWith('tournament')) triggerData();
-    });
-  } catch (e) {
-    console.warn('fs.watch(data) niedostępny:', e.message);
   }
 }
 
@@ -238,13 +233,24 @@ function localIPs() {
   return ips;
 }
 
-server.listen(PORT, '0.0.0.0', () => {
-  watchForLiveReload();
-  const ips = localIPs();
-  console.log('\n  ⚽  Puchar Felka 2016 — serwer wystartował\n');
-  console.log('  Lokalnie:        http://localhost:' + PORT);
-  ips.forEach((ip) => console.log('  W sieci LAN:     http://' + ip + ':' + PORT));
-  console.log('\n  Tryb edycji PIN: ' + (EDIT_PIN ? '(ustawiony w config.json)' : '(wyłączony)'));
-  console.log('  Live-reload:     aktywny (edytuj pliki w /public — strona odświeży się sama)');
-  console.log('\n  Zatrzymanie:     Ctrl + C\n');
+// ---------- Start ----------
+async function start() {
+  await db.connect((m) => console.log('  ' + m));
+  await db.migrateIfEmpty(seedData, (m) => console.log('  ' + m));
+
+  server.listen(PORT, '0.0.0.0', () => {
+    watchForLiveReload();
+    const ips = localIPs();
+    console.log('\n  ⚽  Puchar Felka — serwer wystartował\n');
+    console.log('  Lokalnie:        http://localhost:' + PORT);
+    ips.forEach((ip) => console.log('  W sieci LAN:     http://' + ip + ':' + PORT));
+    console.log('\n  Tryb edycji PIN: ' + (EDIT_PIN ? '(ustawiony)' : '(wyłączony)'));
+    console.log('  Live-reload:     aktywny (edytuj pliki w /public — strona odświeży się sama)');
+    console.log('\n  Zatrzymanie:     Ctrl + C\n');
+  });
+}
+
+start().catch((e) => {
+  console.error('\n  ✗ Nie udało się uruchomić serwera:', e.message, '\n');
+  process.exit(1);
 });
