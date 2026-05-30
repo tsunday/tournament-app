@@ -2,7 +2,6 @@ node_modules
 npm-debug.log*
 .git
 .gitignore
-data/backups
 Dockerfile
 docker-compose.yml
 .dockerignore

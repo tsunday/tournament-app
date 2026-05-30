@@ -28,7 +28,6 @@ const db = require('./db');
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'tournament.json');
 const CONFIG_FILE = path.join(ROOT, 'config.json');
 
 function loadConfig() {
@@ -94,21 +93,17 @@ function readBody(req) {
   });
 }
 
-// Dane startowe przy pustej bazie: importowane z data/tournament.json,
-// a w razie jego braku — minimalny pusty turniej.
+// Dane startowe przy pustej bazie: minimalny pusty turniej.
+// (Źródłem prawdy jest MongoDB — turniej tworzy się przez interfejs.)
 function seedData() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch (_) {
-    return {
-      tournamentName: 'Puchar Felka',
-      year: '',
-      subtitle: 'Turniej piłkarski dla dzieci',
-      settings: { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, qualifyCount: 2 },
-      mode: 'groups',
-      groups: [],
-    };
-  }
+  return {
+    tournamentName: 'Puchar Felka',
+    year: '',
+    subtitle: 'Turniej piłkarski dla dzieci',
+    settings: { pointsWin: 3, pointsDraw: 1, pointsLoss: 0, qualifyCount: 2 },
+    mode: 'groups',
+    groups: [],
+  };
 }
 
 // ---------- Routing ----------
