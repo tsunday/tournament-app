@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Puchar Felka 2016 — tabela turnieju</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- Tło: boisko -->
+  <div class="pitch-bg" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="crest" aria-hidden="true">
+          <span class="crest-star">★</span>
+          <span class="crest-ball">⚽</span>
+        </div>
+        <div class="brand-text">
+          <h1 id="t-name">Puchar Felka</h1>
+          <div class="brand-sub">
+            <span id="t-year" class="year-badge">2016</span>
+            <span id="t-subtitle">Turniej piłkarski dla dzieci</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span class="live-dot" id="live-dot" title="Połączenie na żywo">
+          <span class="dot"></span> NA ŻYWO
+        </span>
+        <button id="edit-toggle" class="btn btn-edit" type="button">
+          <span class="ico">✎</span> Tryb edycji
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="app">
+    <div class="loading" id="loading">Wczytywanie tabeli…</div>
+    <div id="groups" class="groups"></div>
+  </main>
+
+  <!-- Pasek narzędzi edycji (pojawia się w trybie edycji) -->
+  <div id="edit-bar" class="edit-bar" hidden>
+    <div class="edit-bar-inner">
+      <span class="edit-flag">TRYB EDYCJI</span>
+      <button id="add-group" class="btn btn-ghost" type="button">+ Dodaj grupę</button>
+      <button id="edit-meta" class="btn btn-ghost" type="button">Nazwa / opis turnieju</button>
+      <span class="spacer"></span>
+      <span id="save-status" class="save-status"></span>
+      <button id="save-now" class="btn btn-save" type="button">Zapisz teraz</button>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <span id="updated-at"></span>
+    <span class="footer-legend">Top <b id="qualify-n">2</b> z każdej grupy awansuje dalej</span>
+  </footer>
+
+  <!-- Toast powiadomień -->
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- PIN modal -->
+  <div id="pin-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h3>Podaj PIN edycji</h3>
+      <p class="modal-hint">Aby edytować tabelę, wpisz PIN ustawiony w pliku <code>config.json</code>.</p>
+      <input id="pin-input" class="pin-input" type="password" placeholder="PIN" autocomplete="off" />
+      <div class="modal-actions">
+        <button id="pin-cancel" class="btn btn-ghost" type="button">Anuluj</button>
+        <button id="pin-ok" class="btn btn-save" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

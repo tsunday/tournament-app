@@ -1,0 +1,13 @@
+{
+  "name": "puchar-felka-2016",
+  "version": "1.0.0",
+  "description": "Tabela turnieju Puchar Felka 2016 — statyczna strona z edycją na żywo (Node.js, sieć lokalna).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "private": true
+}
