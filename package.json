@@ -4,7 +4,8 @@
   "description": "Tabela turnieju Puchar Felka — statyczna strona z edycją na żywo (Node.js + MongoDB).",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"
